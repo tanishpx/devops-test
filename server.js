@@ -27,6 +27,27 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
+const contentTypeMap = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+};
+
+function sendFile(res, filePath) {
+  if (!fs.existsSync(filePath)) {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    return res.end('Not found');
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = contentTypeMap[ext] || 'application/octet-stream';
+  const data = fs.readFileSync(filePath);
+
+  res.writeHead(200, { 'Content-Type': contentType });
+  res.end(data);
+}
+
 const server = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/register') {
     let body = '';
@@ -56,8 +77,13 @@ const server = http.createServer((req, res) => {
         sendJson(res, 400, { success: false, message: 'Invalid request payload.' });
       }
     });
+  } else if (req.method === 'GET') {
+    const requestedPath = req.url === '/' ? '/index.html' : req.url;
+    const filePath = path.join(__dirname, requestedPath);
+    sendFile(res, filePath);
   } else {
-    sendJson(res, 404, { success: false, message: 'Not found.' });
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: false, message: 'Not found.' }));
   }
 });
 

@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "fullName": "test",
+    "branch": "CSE",
+    "email": "test@gmail.com",
+    "number": "1234567890",
+    "password": "12345678",
+    "registeredAt": "2026-08-07T04:32:02.492Z"
+  }
+]
