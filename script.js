@@ -1,27 +1,43 @@
 // 1. Fixed: Added quotes around 'sbmt'
-const form = document.getElementById('sbmt'); 
+const form = document.getElementById('sbmt');
 
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
 
-form.addEventListener('submit', (event) => {
-   
-    const pass_val = document.getElementById('pass').value;
-    const branch_val = document.getElementById('branch').value;
-    const num_val = document.getElementById('num').value;
+  const fullName = document.getElementById('full-name').value.trim();
+  const branch = document.getElementById('branch').value;
+  const email = document.getElementById('email').value.trim();
+  const number = document.getElementById('num').value.trim();
+  const password = document.getElementById('pass').value;
 
-    
-    if (pass_val.length < 8) {
-        event.preventDefault();
-        alert("password is too short");
-        return; 
+  if (password.length < 8) {
+    alert('Password is too short');
+    return;
+  }
+
+  if (!number) {
+    alert('Please enter a mobile number');
+    return;
+  }
+
+  const payload = { fullName, branch, email, number, password };
+
+  try {
+    const response = await fetch('/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      alert('Form submitted successfully!');
+      form.reset();
+    } else {
+      alert(result.message || 'Unable to save registration');
     }
-
-   
-    if (num_val === "") {
-        event.preventDefault();
-        alert("Please enter a mobile number");
-        return;
-    }
-
-    
-    alert("Form submitted successfully!");
+  } catch (error) {
+    alert('Error submitting form.');
+  }
 });
