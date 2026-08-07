@@ -7,20 +7,20 @@ form.addEventListener('submit', async (event) => {
   const fullName = document.getElementById('full-name').value.trim();
   const branch = document.getElementById('branch').value;
   const email = document.getElementById('email').value.trim();
-  const number = document.getElementById('num').value.trim();
-  const password = document.getElementById('pass').value;
+  const num_val = document.getElementById('num').value.trim();
+  const pass_val = document.getElementById('pass').value;
 
-  if (password.length < 8) {
+  if (pass_val.length < 8) {
     alert('Password is too short');
     return;
   }
 
-  if (!number) {
+  if (num_val === "") {
     alert('Please enter a mobile number');
     return;
   }
 
-  const payload = { fullName, branch, email, number, password };
+  const payload = { fullName, branch, email, number: num_val, password: pass_val };
 
   try {
     const response = await fetch('/register', {
