@@ -1,0 +1,25 @@
+*{
+    margin: 0%;
+    padding: 0%;
+}
+
+.container{
+    margin: 100px;
+    padding-inline: 10px;
+}
+
+.fm{
+    display: inline;
+}
+
+input,label{
+    display: block;
+}
+.container{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height:300px;
+    
+}
+
