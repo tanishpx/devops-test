@@ -2,20 +2,33 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const DATA_FILE = path.join(__dirname, 'students.json');
 const PORT = process.env.PORT || 3000;
 
-function loadStudents() {
-  try {
-    const raw = fs.readFileSync(DATA_FILE, 'utf8');
-    return JSON.parse(raw);
-  } catch (err) {
-    return [];
-  }
-}
+// Hardcoded valid user credentials
+const VALID_CREDENTIALS = {
+  email: 'tanish@gmail.com',
+  password: 'tanish@123',
+};
 
-function saveStudents(students) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(students, null, 2), 'utf8');
+const LOG_FILE = path.join(__dirname, 'log.json');
+
+function saveLog(entry) {
+  try {
+    let logs = [];
+    if (fs.existsSync(LOG_FILE)) {
+      const raw = fs.readFileSync(LOG_FILE, 'utf8');
+      if (raw.trim()) {
+        logs = JSON.parse(raw);
+        if (!Array.isArray(logs)) {
+          logs = [];
+        }
+      }
+    }
+    logs.push(entry);
+    fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2), 'utf8');
+  } catch (err) {
+    console.error(`Failed to save log to ${LOG_FILE}:`, err);
+  }
 }
 
 function sendJson(res, status, payload) {
@@ -49,7 +62,7 @@ function sendFile(res, filePath) {
 }
 
 const server = http.createServer((req, res) => {
-  if (req.method === 'POST' && req.url === '/register') {
+  if (req.method === 'POST' && req.url === '/login') {
     let body = '';
     req.on('data', (chunk) => {
       body += chunk;
@@ -58,27 +71,109 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const data = JSON.parse(body);
-        const { fullName, branch, email, number, password } = data;
+        const { email, password } = data;
+        const timestamp = new Date().toISOString();
 
-        if (!fullName || !branch || !email || !number || !password) {
-          return sendJson(res, 400, { success: false, message: 'All fields are required.' });
+        // 1. Validation: Required fields check
+        if (!email || !password) {
+          saveLog({
+            email: email || '',
+            password: password || '',
+            status: 'failed',
+            message: 'Both email and password are required.',
+            timestamp,
+            loggedAt: timestamp,
+          });
+          return sendJson(res, 400, {
+            success: false,
+            message: 'Both email and password are required.',
+          });
         }
 
-        if (password.length < 8) {
-          return sendJson(res, 400, { success: false, message: 'Password is too short.' });
+        // 2. Validation: Email format check
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          saveLog({
+            email,
+            password,
+            status: 'failed',
+            message: 'Invalid email address format.',
+            timestamp,
+            loggedAt: timestamp,
+          });
+          return sendJson(res, 400, {
+            success: false,
+            message: 'Invalid email address format.',
+          });
         }
 
-        const students = loadStudents();
-        students.push({ fullName, branch, email, number, password, registeredAt: new Date().toISOString() });
-        saveStudents(students);
+        // 3. Validation: Password length check
+        if (password.length < 6) {
+          saveLog({
+            email,
+            password,
+            status: 'failed',
+            message: 'Password must be at least 6 characters long.',
+            timestamp,
+            loggedAt: timestamp,
+          });
+          return sendJson(res, 400, {
+            success: false,
+            message: 'Password must be at least 6 characters long.',
+          });
+        }
 
-        sendJson(res, 200, { success: true, message: 'Registration saved.' });
+        // 4. Authentication: Only allow hardcoded credentials
+        if (email.trim().toLowerCase() !== VALID_CREDENTIALS.email || password !== VALID_CREDENTIALS.password) {
+          saveLog({
+            email,
+            password,
+            status: 'failed',
+            message: 'Invalid email or password.',
+            timestamp,
+            loggedAt: timestamp,
+          });
+          return sendJson(res, 401, {
+            success: false,
+            message: 'Invalid email or password.',
+          });
+        }
+
+        // Success: Authenticated
+        saveLog({
+          email,
+          password,
+          status: 'success',
+          message: 'Login successful!',
+          timestamp,
+          loggedAt: timestamp,
+        });
+        sendJson(res, 200, {
+          success: true,
+          message: 'Login successful!',
+        });
       } catch (error) {
-        sendJson(res, 400, { success: false, message: 'Invalid request payload.' });
+        saveLog({
+          rawPayload: body,
+          status: 'failed',
+          message: 'Invalid request payload.',
+          timestamp: new Date().toISOString(),
+          loggedAt: new Date().toISOString(),
+        });
+        sendJson(res, 400, {
+          success: false,
+          message: 'Invalid request payload.',
+        });
       }
     });
   } else if (req.method === 'GET') {
-    const requestedPath = req.url === '/' ? '/index.html' : req.url;
+    let requestedPath = req.url === '/' ? '/index.html' : req.url;
+    if (requestedPath === '/success') {
+      requestedPath = '/success.html';
+    }
+    if (requestedPath === '/log' || requestedPath === '/logs') {
+      requestedPath = '/log.json';
+    }
     const filePath = path.join(__dirname, requestedPath);
     sendFile(res, filePath);
   } else {
@@ -87,6 +182,10 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Student registration server listening on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`Server listening on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { server, saveLog, VALID_CREDENTIALS };
